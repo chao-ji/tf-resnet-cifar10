@@ -1,5 +1,7 @@
 # ResNet-CIFAR10
 
+#### 110-layer deep neural network
+<img src="https://github.com/chao-ji/ResNet-CIFAR10/blob/master/files/deep_neural_network.png" width="600">
 
 #### Repeating block in Plain Net
 <img src="https://github.com/chao-ji/ResNet-CIFAR10/blob/master/files/plain_tensorboard.png" width="600">
