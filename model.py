@@ -9,14 +9,14 @@ Dense = layers.Dense
 AvgPool = layers.AveragePooling2D
 
 class ResNetModel(object):
-  def __init__(self, hparams, dataset, mode, scope=None):
+  def __init__(self, hparams, dataset, mode, residual_connection=True):
     self._mode = mode
     self._filters = hparams.num_filters 
     self._num_blocks = hparams.num_blocks
     self._training = (self._mode == tf.contrib.learn.ModeKeys.TRAIN)
-
+    self._residual_connection = residual_connection
     self._batch_size = tf.size(dataset.labels)
-    self.logits, self.loss = self._build_graph(hparams, dataset, scope)
+    self.logits, self.loss = self._build_graph(hparams, dataset)
 
   @property
   def mode(self):
@@ -26,7 +26,11 @@ class ResNetModel(object):
   def batch_size(self):
     return self._batch_size
 
-  def _build_graph(self, hparams, dataset, scope=None):
+  @property
+  def residual_connection(self):
+    return self._residual_connection
+
+  def _build_graph(self, hparams, dataset):
     inputs = dataset.images
 
     with tf.variable_scope("Pre_Residual_Layer"):
@@ -112,14 +116,16 @@ class ResNetModel(object):
       outputs = tf.nn.relu(outputs)
       outputs = conv_layers[1](outputs)
 
-    if in_depth == out_depth:
-      padded_inputs = inputs
+    if self.residual_connection:
+      if in_depth == out_depth:
+        padded_inputs = inputs
+      else:
+        pooled_inputs = avg_pool_layer(inputs)
+        padded_inputs = tf.pad(pooled_inputs,
+            [[0, 0], [0, 0], [0, 0], [(out_depth - in_depth) / 2] * 2])
+      return outputs + padded_inputs
     else:
-      pooled_inputs = avg_pool_layer(inputs)
-      padded_inputs = tf.pad(pooled_inputs,
-          [[0, 0], [0, 0], [0, 0], [(out_depth - in_depth) / 2] * 2])
-
-    return outputs + padded_inputs
+      return outputs 
 
   def _final_block(self, inputs, num_units, hparams):
     batch_norm_layer = BatchNorm(axis=-1,
