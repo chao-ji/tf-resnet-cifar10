@@ -20,9 +20,8 @@ class _BaseModelRunner(object):
         self.update_op = self._get_update_op(hparams)
 
       self._global_variables_initializer = tf.global_variables_initializer()
-      self._params = tf.global_variables()
       self._saver = tf.train.Saver(
-          self._params, max_to_keep=hparams.num_keep_ckpts)
+          tf.global_variables(), max_to_keep=hparams.num_keep_ckpts)
 
   @property
   def graph(self):
