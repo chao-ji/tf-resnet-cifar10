@@ -16,7 +16,7 @@ class ResNetModel(object):
     self._training = (self._mode == tf.contrib.learn.ModeKeys.TRAIN)
     self._residual_connection = residual_connection
     self._batch_size = tf.size(dataset.labels)
-    self.logits, self.loss = self._build_graph(hparams, dataset)
+    self.logits = self._build_graph(hparams, dataset)
 
   @property
   def mode(self):
@@ -34,33 +34,29 @@ class ResNetModel(object):
     inputs = dataset.images
 
     with tf.variable_scope("Pre_Residual_Layer"):
-      outputs = self._conv_bn_relu(inputs, self._filters[0], (1, 1), hparams)
+      ftmps = self._conv_bn_relu(inputs, self._filters[0], (1, 1), hparams)
        
     for i in range(self._num_blocks):
       with tf.variable_scope("Filters_%d_Block_%d" % (self._filters[0], i)):
-        outputs = self._residual_block(
-            outputs, self._filters[0], self._filters[0], hparams, i == 0)
+        ftmps = self._residual_block(
+            ftmps, self._filters[0], self._filters[0], hparams, i == 0)
 
     for i in range(self._num_blocks):
       with tf.variable_scope("Filters_%d_Block_%d" % (self._filters[1], i)):
-        outputs = self._residual_block(
-            outputs, self._filters[0] if i == 0 else self._filters[1],
+        ftmps = self._residual_block(
+            ftmps, self._filters[0] if i == 0 else self._filters[1],
             self._filters[1], hparams, False)
 
     for i in range(self._num_blocks):
       with tf.variable_scope("Filters_%d_Block_%d" % (self._filters[2], i)):
-        outputs = self._residual_block(
-            outputs, self._filters[1] if i == 0 else self._filters[2],
+        ftmps = self._residual_block(
+            ftmps, self._filters[1] if i == 0 else self._filters[2],
             self._filters[2], hparams, False)
 
     with tf.variable_scope("Post_Residual_Layer"):
-      logits = self._final_block(outputs, hparams.num_classes, hparams)
+      logits = self._final_block(ftmps, hparams.num_classes, hparams)
 
-    if self.mode != tf.contrib.learn.ModeKeys.INFER:
-      loss = _compute_loss(logits, dataset.labels)
-    else:
-      loss = tf.no_op()
-    return logits, loss
+    return logits
 
   def _conv_bn_relu(self, inputs, filters, strides, hparams):
     conv_layer = Conv(filters=filters,
@@ -74,13 +70,13 @@ class ResNetModel(object):
                                  fused=False,
                                  epsilon=hparams.epsilon)
 
-    outputs = conv_layer(inputs)   
-    outputs = batch_norm_layer(outputs, training=self._training)
-    outputs = tf.nn.relu(outputs)
-    return outputs
+    ftmps = conv_layer(inputs)   
+    ftmps = batch_norm_layer(ftmps, training=self._training)
+    ftmps = tf.nn.relu(ftmps)
+    return ftmps
 
   def _residual_block(self, inputs, in_depth, out_depth, hparams, first_block):
-    outputs = inputs 
+    ftmps = inputs 
     batch_norm_layers = [BatchNorm(axis=-1,
                                    fused=False,
                                    epsilon=hparams.epsilon),
@@ -107,14 +103,14 @@ class ResNetModel(object):
 
     with tf.variable_scope("ConvLayer1"):
       if not first_block:
-        outputs = batch_norm_layers[0](outputs, training=self._training)
-        outputs = tf.nn.relu(outputs)
-      outputs = conv_layers[0](outputs) 
+        ftmps = batch_norm_layers[0](ftmps, training=self._training)
+        ftmps = tf.nn.relu(ftmps)
+      ftmps = conv_layers[0](ftmps)
 
     with tf.variable_scope("ConvLayer2"):
-      outputs = batch_norm_layers[1](outputs, training=self._training)
-      outputs = tf.nn.relu(outputs)
-      outputs = conv_layers[1](outputs)
+      ftmps = batch_norm_layers[1](ftmps, training=self._training)
+      ftmps = tf.nn.relu(ftmps)
+      ftmps = conv_layers[1](ftmps)
 
     if self.residual_connection:
       if in_depth == out_depth:
@@ -123,9 +119,9 @@ class ResNetModel(object):
         pooled_inputs = avg_pool_layer(inputs)
         padded_inputs = tf.pad(pooled_inputs,
             [[0, 0], [0, 0], [0, 0], [(out_depth - in_depth) / 2] * 2])
-      return outputs + padded_inputs
+      return ftmps + padded_inputs
     else:
-      return outputs 
+      return ftmps
 
   def _final_block(self, inputs, num_units, hparams):
     batch_norm_layer = BatchNorm(axis=-1,
@@ -136,10 +132,10 @@ class ResNetModel(object):
                         kernel_initializer=_dense_kernel_initializer(hparams),
                         kernel_regularizer=_regularizer(hparams))
 
-    outputs = batch_norm_layer(inputs, training=self._training)
-    outputs = tf.nn.relu(outputs)
-    outputs_global_avg_pool = tf.reduce_mean(outputs, reduction_indices=[1, 2])
-    logits = dense_layer(outputs_global_avg_pool)
+    ftmps = batch_norm_layer(inputs, training=self._training)
+    ftmps = tf.nn.relu(ftmps)
+    ftmps_global_avg_pool = tf.reduce_mean(ftmps, reduction_indices=[1, 2])
+    logits = dense_layer(ftmps_global_avg_pool)
     return logits
 
 def _compute_loss(logits, labels):
