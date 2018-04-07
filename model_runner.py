@@ -10,7 +10,9 @@ class _BaseModelRunner(object):
     with self._graph.as_default():
       self._dataset = data.CIFAR10Dataset(hparams, type(self).mode)
       self._model = builder(hparams, self.dataset, type(self).mode)
-      self._accuracy = self._compute_accuracy()
+
+      self._loss = _compute_loss(self.dataset.labels, self.model.logits)
+      self._accuracy = _compute_accuracy(self.dataset.labels, self.model.logits)
 
       if type(self).mode == tf.contrib.learn.ModeKeys.TRAIN:
         self._global_step = tf.Variable(0, trainable=False, name="global_step")
@@ -34,7 +36,15 @@ class _BaseModelRunner(object):
   def model(self):
     return self._model
 
-  def restore_params_from(self, sess, ckpt_dir):
+  @property
+  def loss(self):
+    return self._loss
+
+  @property
+  def accuracy(self):
+    return self._accuracy
+
+  def restore_params_from_dir(self, sess, ckpt_dir):
     latest_ckpt = tf.train.latest_checkpoint(ckpt_dir)
     if latest_ckpt:
       print("%s model is loading params from %s..." % (
@@ -44,6 +54,11 @@ class _BaseModelRunner(object):
       print("%s model is creating fresh params..." %
           type(self).mode.upper())
       sess.run(self._global_variables_initializer)
+
+  def restore_params_from_ckpt(self, sess, ckpt):
+    print("%s model is loading params from %s..." % (
+        type(self).mode.upper(), ckpt))
+    self._saver.restore(sess, ckpt)
 
   def persist_params_to(self, sess, ckpt):
     print("%s model is saving params to %s..." % (
@@ -65,8 +80,8 @@ class ResNetModelTrainer(_BaseModelRunner):
         builder=builder, hparams=hparams)
     with self.graph.as_default():
       self.summary = tf.summary.merge([
-          tf.summary.scalar("train_loss", self.model.loss),
-          tf.summary.scalar("train_accuracy", self._accuracy),
+          tf.summary.scalar("train_loss", self.loss),
+          tf.summary.scalar("train_accuracy", self.accuracy),
           tf.summary.scalar("learning_rate", self.learning_rate)])
 
   def _get_learning_rate(self, hparams):
@@ -85,14 +100,14 @@ class ResNetModelTrainer(_BaseModelRunner):
     opt = tf.train.MomentumOptimizer(self.learning_rate, hparams.momentum)
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(update_ops):
-      update_op = opt.minimize(self.model.loss, global_step=self._global_step)
+      update_op = opt.minimize(self.loss, global_step=self._global_step)
     return update_op
 
   def train(self, sess):
     feed_dict = self.dataset.refill_feed_dict()
     return sess.run([self.update_op,
-                     self.model.loss,
-                     self._accuracy,
+                     self.loss,
+                     self.accuracy,
                      self.model.batch_size,
                      self.learning_rate,
                      self._global_step,
@@ -105,12 +120,27 @@ class ResNetModelEvaluator(_BaseModelRunner):
         builder=builder, hparams=hparams)
     with self.graph.as_default():
       self.summary = tf.summary.merge([
-          tf.summary.scalar("loss", self.model.loss),
-          tf.summary.scalar("accuracy", self._accuracy)])
+          tf.summary.scalar("loss", self.loss),
+          tf.summary.scalar("accuracy", self.accuracy)])
 
   def eval(self, sess):
     feed_dict = self.dataset.refill_feed_dict()
-    return sess.run([self.model.loss,
-                     self._accuracy,
+    return sess.run([self.loss,
+                     self.accuracy,
                      self.model.batch_size,
                      self.summary], feed_dict)
+
+
+def _compute_loss(labels, logits):
+  xentropy_loss = tf.reduce_mean(
+      tf.nn.sparse_softmax_cross_entropy_with_logits(
+          labels=labels, logits=logits))
+  regularization_loss = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+  total_loss = tf.add_n([xentropy_loss] + regularization_loss)
+  return total_loss
+
+
+def _compute_accuracy(labels, logits):
+  accuracy = tf.reduce_mean(
+      tf.cast(tf.equal(labels, tf.argmax(logits, 1)), tf.float32))
+  return accuracy
