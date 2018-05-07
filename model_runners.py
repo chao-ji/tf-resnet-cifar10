@@ -1,8 +1,18 @@
+"""Defines ResNetModel `Trainer` and `Evaluator` for 
+ training on the training set (50000 labeles images) and evaluating
+ on the test set (10000 labeled images).
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import tensorflow as tf
 
 import data
 
+
 class _BaseModelRunner(object):
+  """Base class for `Trainer` and `Evaluator`."""
   mode = None
   def __init__(self, builder, hparams):
     tf.contrib.learn.ModeKeys.validate(type(self).mode)
@@ -11,13 +21,18 @@ class _BaseModelRunner(object):
       self._dataset = data.CIFAR10Dataset(hparams, type(self).mode)
       self._model = builder(hparams, self.dataset, type(self).mode)
 
-      self._loss = _compute_loss(self.dataset.labels, self.model.logits)
-      self._accuracy = _compute_accuracy(self.dataset.labels, self.model.logits)
+      with tf.variable_scope("compute_loss"):
+        self._loss = _compute_loss(self.dataset.labels, self.model.logits)
+      with tf.variable_scope("compute_accuracy"):
+        self._accuracy = _compute_accuracy(self.dataset.labels, self.model.logits)
 
       if type(self).mode == tf.contrib.learn.ModeKeys.TRAIN:
-        self._global_step = tf.Variable(0, trainable=False, name="global_step")
-        self.learning_rate = self._get_learning_rate(hparams)
-        self.update_op = self._get_update_op(hparams)
+        with tf.variable_scope("learning_rate_ops"):
+          self._global_step = tf.Variable(hparams.init_global_step,
+              trainable=False, name="global_step")
+          self.learning_rate = self._get_learning_rate(hparams)
+        with tf.variable_scope("update_ops"):
+          self.update_op = self._get_update_op(hparams)
 
       self._global_variables_initializer = tf.global_variables_initializer()
       self._saver = tf.train.Saver(
@@ -44,35 +59,33 @@ class _BaseModelRunner(object):
     return self._accuracy
 
   def restore_params_from_dir(self, sess, ckpt_dir):
+    """Loads parameters from the most up-to-date checkpoint file in
+    `ckpt_dir`, or creating new parameters."""
     latest_ckpt = tf.train.latest_checkpoint(ckpt_dir)
     if latest_ckpt:
-      print("%s model is loading params from %s..." % (
-          type(self).mode.upper(), latest_ckpt))
-      self._saver.restore(sess, latest_ckpt)
+      self.restore_params_from_ckpt(sess, latest_ckpt)
     else:
       print("%s model is creating fresh params..." %
           type(self).mode.upper())
       sess.run(self._global_variables_initializer)
 
   def restore_params_from_ckpt(self, sess, ckpt):
+    """Loads parameters from checkpoint `ckpt`."""
     print("%s model is loading params from %s..." % (
         type(self).mode.upper(), ckpt))
     self._saver.restore(sess, ckpt)
 
   def persist_params_to(self, sess, ckpt):
+    """Saves parameters to a checkpoint."""
     print("%s model is saving params to %s..." % (
         type(self).mode.upper(), ckpt))
     self._saver.save(sess, ckpt, global_step=self._global_step)
 
-  def _compute_accuracy(self):
-    logits = self.model.logits
-    labels = self.dataset.labels
-    accuracy = tf.reduce_mean(
-        tf.cast(tf.equal(labels, tf.argmax(logits, 1)), tf.float32))
-    return accuracy
-
 
 class ResNetModelTrainer(_BaseModelRunner):
+  """Defines `Trainer`. The graph for update ops is defined on top of 
+  existing forward pass graph.
+  """
   mode = tf.contrib.learn.ModeKeys.TRAIN
   def __init__(self, builder, hparams):
     super(ResNetModelTrainer, self).__init__(
@@ -98,6 +111,7 @@ class ResNetModelTrainer(_BaseModelRunner):
   def _get_update_op(self, hparams):
     opt = tf.train.MomentumOptimizer(self.learning_rate, hparams.momentum)
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    # For updating the population mean and variance in batch norm
     with tf.control_dependencies(update_ops):
       update_op = opt.minimize(self.loss, global_step=self._global_step)
     return update_op
@@ -112,7 +126,9 @@ class ResNetModelTrainer(_BaseModelRunner):
                      self._global_step,
                      self.summary], feed_dict)
 
+
 class ResNetModelEvaluator(_BaseModelRunner):
+  """Defines `Evaluator`."""
   mode = tf.contrib.learn.ModeKeys.EVAL
   def __init__(self, builder, hparams):
     super(ResNetModelEvaluator, self).__init__(
