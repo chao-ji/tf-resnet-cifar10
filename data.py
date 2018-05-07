@@ -1,21 +1,35 @@
+"""The data module for reading, processing, and feeding labeled examples
+to the model builder module.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import os
 
 import numpy as np
 import tensorflow as tf
 from sklearn.preprocessing import StandardScaler
 
+BYTES_PER_INSTANCE = 3073
+HEIGHT, WIDTH, CHANNELS = 32, 32, 3
+TRAIN_MODE = tf.contrib.learn.ModeKeys.TRAIN
+
 
 class CIFAR10Dataset(object):
+  """Wrapper for `labels` (class labels) and `inputs` (images) to `Trainer`
+  and `Evaluator`.
+  """
   def __init__(self, hparams, mode):
     self._mode = mode
-    self._labels = tf.placeholder(tf.int64, shape=[None])
-    self._images = tf.placeholder(tf.float32, shape=[None,
-        hparams.height, hparams.width, hparams.channels])
+    self._labels = tf.placeholder(tf.int64, shape=[None], name="labels")
+    self._inputs = tf.placeholder(tf.float32, shape=[None,
+        hparams.height, hparams.width, hparams.channels], name="inputs")
 
     train, test = _DataReader(hparams)._read_data()
-    train, test = _subtract_per_pixel_mean(train, test, hparams)
+    train, test = _subtract_per_pixel_mean(train, test)
 
-    if mode == "train":
+    if mode == TRAIN_MODE:
       self.generator = _DataFeeder(
           hparams, mode, train[0], train[1]).create_train_batch_generator()
     else:
@@ -31,23 +45,24 @@ class CIFAR10Dataset(object):
     return self._labels
 
   @property
-  def images(self):
-    return self._images
+  def inputs(self):
+    return self._inputs
 
   def refill_feed_dict(self):
-    labels, images = self.generator.next() 
-    return {self.labels: labels, self.images: images}
+    labels, inputs = self.generator.next() 
+    return {self.labels: labels, self.inputs: inputs}
 
 
 class _DataReader(object):
+  """Helper class for reading CIFAR10 data."""
   def __init__(self, hparams):
     self.path = hparams.path
     self.train_files = hparams.train_files
     self.test_files = hparams.test_files
-    self.bytes_per_instance = hparams.bytes_per_instance
-    self.channels = hparams.channels
-    self.height = hparams.height
-    self.width = hparams.width
+    self.bytes_per_instance = BYTES_PER_INSTANCE
+    self.channels = CHANNELS
+    self.height = HEIGHT 
+    self.width = WIDTH
 
   def _read_data(self):
     filenames = [os.path.join(self.path, fn)
@@ -55,9 +70,9 @@ class _DataReader(object):
 
     train = [[], []]
     for fn in filenames[:-1]:
-      labels, images = self._read_file(fn)
+      labels, inputs = self._read_file(fn)
       train[0].append(labels)
-      train[1].append(images)
+      train[1].append(inputs)
 
     train[0] = np.hstack(train[0])
     train[1] = np.vstack(train[1])
@@ -67,26 +82,27 @@ class _DataReader(object):
   def _read_file(self, filename):
     content = np.fromfile(filename, np.uint8)
     labels = []
-    images = []
+    inputs = []
     for i in np.arange(0, len(content), self.bytes_per_instance):
       labels.append(content[i])
-      images.append(content[i + 1 : i + self.bytes_per_instance].reshape((
+      inputs.append(content[i + 1 : i + self.bytes_per_instance].reshape((
           self.channels, self.height, self.width)))
     labels = np.array(labels).astype(np.int64)
-    images = np.array(images).transpose(0, 2, 3, 1).astype(np.float32)
-    return [labels, images]
+    inputs = np.array(inputs).transpose(0, 2, 3, 1).astype(np.float32)
+    return [labels, inputs]
 
 
 class _DataFeeder(object):
-  def __init__(self, hparams, mode, labels, images):
+  """Helper class for processing and feeding CIFAR10 data."""
+  def __init__(self, hparams, mode, labels, inputs):
     self.pad_size = hparams.pad_size
     self.crop_size = hparams.crop_size
     self._rs = np.random.RandomState(hparams.random_seed)
-    self.batch_size = hparams.batch_size if mode == "train" \
+    self.batch_size = hparams.batch_size if mode == TRAIN_MODE \
         else hparams.test_batch_size
 
     self.labels = labels
-    self.images = images
+    self.inputs = inputs
 
   def _random_crop(self, image):
     h_crop, w_crop = [self.crop_size] * 2
@@ -114,26 +130,29 @@ class _DataFeeder(object):
     return image[np.newaxis, :]
 
   def create_train_batch_generator(self):
+    """Creates python generator for `Trainer`."""
     while True:
-      indices = self._rs.choice(self.images.shape[0], self.batch_size, False)
-      batch = self.images[indices]
+      indices = self._rs.choice(self.inputs.shape[0], self.batch_size, False)
+      batch = self.inputs[indices]
       batch = np.vstack([self._preprocess_train_image(img) for img in batch])
       yield self.labels[indices], batch
 
   def create_test_batch_generator(self):
-    for i in range(0, self.images.shape[0], self.batch_size):
+    """Creates python generator for `Evaluator`."""
+    for i in range(0, self.inputs.shape[0], self.batch_size):
       yield self.labels[i: i + self.batch_size], \
-          self.images[i: i + self.batch_size]
+          self.inputs[i: i + self.batch_size]
 
 
-def _subtract_per_pixel_mean(train, test, hparams):
-  train[1] = train[1].reshape((-1,
-      hparams.height * hparams.width * hparams.channels))
-  test[1] = test[1].reshape((-1,
-      hparams.height * hparams.width * hparams.channels))
+def _subtract_per_pixel_mean(train, test):
+  """Computes per pixel means of training set, and subtract them from
+  training set and test set."""
+  height, width, channels = HEIGHT, WIDTH, CHANNELS
+  train[1] = train[1].reshape((-1, height * width * channels))
+  test[1] = test[1].reshape((-1, height * width * channels))
   scaler = StandardScaler(with_mean=True, with_std=False)
-  train[1] = scaler.fit_transform(train[1]).reshape((-1,
-      hparams.height, hparams.width, hparams.channels))
-  test[1] = scaler.transform(test[1]).reshape((-1,
-      hparams.height, hparams.width, hparams.channels))
+  train[1] = scaler.fit_transform(train[1]).reshape((
+      -1, height, width, channels))
+  test[1] = scaler.transform(test[1]).reshape((
+      -1, height, width, channels))
   return train, test
