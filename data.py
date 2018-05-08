@@ -20,11 +20,12 @@ class CIFAR10Dataset(object):
   """Wrapper for `labels` (class labels) and `inputs` (images) to `Trainer`
   and `Evaluator`.
   """
-  def __init__(self, hparams, mode):
+  def __init__(self, hparams, mode, scope=None):
     self._mode = mode
-    self._labels = tf.placeholder(tf.int64, shape=[None], name="labels")
-    self._inputs = tf.placeholder(tf.float32, shape=[None,
-        hparams.height, hparams.width, hparams.channels], name="inputs")
+    with tf.variable_scope(scope, "data"):  
+      self._labels = tf.placeholder(tf.int64, shape=[None], name="labels")
+      self._inputs = tf.placeholder(tf.float32, shape=[None,
+        HEIGHT, WIDTH, CHANNELS], name="inputs")
 
     train, test = _DataReader(hparams)._read_data()
     train, test = _subtract_per_pixel_mean(train, test)
