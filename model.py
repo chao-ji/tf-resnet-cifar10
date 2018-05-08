@@ -1,5 +1,5 @@
 """The preactivation variant of Residual networks for classifying 32 by 32
-images from CIFAR10 dataset.
+images of the CIFAR10 dataset.
 
 [1] Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
     Deep Residual Learning for Image Recognition. arXiv:1512.03385
@@ -22,7 +22,7 @@ from tensorflow.contrib.layers.python.layers import layers
 from tensorflow.contrib.layers.python.layers import utils
 
 import data
-import resnet_utils
+from utils import resnet_utils
 
 resnet_arg_scope = resnet_utils.resnet_arg_scope
 
@@ -33,36 +33,23 @@ class ResNetModel(object):
     self._mode = mode
     self._is_training = self._mode == tf.contrib.learn.ModeKeys.TRAIN
     self._shortcut_conn = hparams.shortcut_conn
-    self._batch_size = tf.size(dataset.labels)
 
     with arg_scope(resnet_arg_scope(
         weight_decay=hparams.weight_decay,
         batch_norm_epsilon=hparams.epsilon,
         random_seed=hparams.random_seed)):
-      self.logits = self._build_graph(hparams, dataset)
-
-  @property
-  def mode(self):
-    return self._mode
-
-  @property
-  def batch_size(self):
-    return self._batch_size
-
-  @property
-  def shortcut_conn(self):
-    return self._shortcut_conn
+      self._logits = self._build_graph(hparams, dataset)
 
   def _build_graph(self, hparams, dataset, reuse=None):
     """Builds the graph for the forward pass (from `dataset.inputs` to `logits`)
     """ 
     inputs = dataset.inputs
     num_layers = hparams.num_layers
-    shortcut_conn = self.shortcut_conn
+    shortcut_conn = self._shortcut_conn
     is_training = self._is_training
 
     if num_layers not in (20, 32, 44, 56, 110):
-      raise ValueError("`num_layers' must be 20, 32, 44, 56 or 100.")
+      raise ValueError("`num_layers` must be 20, 32, 44, 56 or 110.")
 
     num_units = (num_layers - 2) // 6
     scope = "resnet_v2_cifar10_%d" % num_layers
@@ -71,7 +58,7 @@ class ResNetModel(object):
         resnet_v2_block("block2", num_units, 32, 2, shortcut_conn, False),
         resnet_v2_block("block3", num_units, 64, 2, shortcut_conn, False)]
 
-    with tf.variable_scope(scope, "resnet_v2", [inputs], reuse=reuse) as sc:
+    with tf.variable_scope(scope, "resnet_v2", [inputs], reuse=reuse):
       with arg_scope([layers.batch_norm], is_training=is_training):
         net = inputs
 
@@ -109,7 +96,7 @@ def unit_fn_v2(inputs,
   """The v2 variant of ResNet unit with BN-relu preceeding convolution.
   See ref [2].
   """
-  with tf.variable_scope(scope, "unit_fn_v2", [inputs]) as sc:
+  with tf.variable_scope(scope, "unit_fn_v2", [inputs]):
     depth_in = utils.last_dimension(inputs.get_shape(), min_rank=4)
     preact = layers.batch_norm(
         inputs, activation_fn=tf.nn.relu, scope="preact")
