@@ -150,3 +150,4 @@ def _compute_acc(labels, logits, scope=None):
     accuracy = tf.reduce_mean(
         tf.cast(tf.equal(labels, tf.argmax(logits, 1)), tf.float32))
   return accuracy
+ 
