@@ -21,17 +21,13 @@ class _BaseModelRunner(object):
       self._dataset = data.CIFAR10Dataset(hparams, type(self).mode)
       self._model = builder(hparams, self.dataset, type(self).mode)
 
-      with tf.variable_scope("evaluation"):
-        self._loss = _compute_loss(self.dataset._labels, self.model._logits)
-        self._accuracy = _compute_acc(self.dataset._labels, self.model._logits)
+      self._loss = _compute_loss(self.dataset._labels, self.model._logits)
+      self._accuracy = _compute_acc(self.dataset._labels, self.model._logits)
 
       if type(self).mode == tf.contrib.learn.ModeKeys.TRAIN:
-        with tf.variable_scope("learning_rate_ops"):
-          self._global_step = tf.Variable(hparams.init_global_step,
-              trainable=False, name="global_step")
-          self._learning_rate = self._get_learning_rate(hparams)
-        with tf.variable_scope("update_ops"):
-          self._update_op = self._get_update_op(hparams)
+        self._global_step, self._learning_rate = self._get_learning_rate_ops(
+          hparams)
+        self._update_op = self._get_update_op(hparams)
 
       self._global_variables_initializer = tf.global_variables_initializer()
       self._saver = tf.train.Saver(
@@ -74,8 +70,8 @@ class _BaseModelRunner(object):
 
 
 class ResNetModelTrainer(_BaseModelRunner):
-  """Defines `Trainer`. The graph for update ops is defined on top of 
-  existing forward pass graph.
+  """Defines `Trainer`, where the graph for learning rate and update ops are 
+   defined on top of existing forward pass graph.
   """
   mode = tf.contrib.learn.ModeKeys.TRAIN
   def __init__(self, builder, hparams):
@@ -87,24 +83,28 @@ class ResNetModelTrainer(_BaseModelRunner):
           tf.summary.scalar("train_accuracy", self._accuracy),
           tf.summary.scalar("learning_rate", self._learning_rate)])
 
-  def _get_learning_rate(self, hparams):
-    init_lr = hparams.learning_rate
-    global_step = self._global_step
-    learning_rate = tf.cond(tf.less(global_step, 500),
-        lambda: tf.constant(0.01, dtype=tf.float32),
-        lambda: tf.cond(tf.less(global_step, 32000),
-            lambda: tf.constant(init_lr, dtype=tf.float32),
-            lambda: tf.cond(tf.less(global_step, 48000),
-                lambda: tf.constant(init_lr/10., dtype=tf.float32), 
-                lambda: tf.constant(init_lr/100., dtype=tf.float32))))
-    return learning_rate
+  def _get_learning_rate_ops(self, hparams, scope=None):
+    with tf.variable_scope(scope, "learning_rate_ops"):
+      global_step = tf.Variable(hparams.init_global_step,
+          trainable=False, name="global_step")
 
-  def _get_update_op(self, hparams):
-    opt = tf.train.MomentumOptimizer(self._learning_rate, hparams.momentum)
-    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-    # For updating the population mean and variance in batch norm
-    with tf.control_dependencies(update_ops):
-      update_op = opt.minimize(self._loss, global_step=self._global_step)
+      init_lr = hparams.learning_rate
+      learning_rate = tf.cond(tf.less(global_step, 500),
+          lambda: tf.constant(init_lr/10., dtype=tf.float32),
+          lambda: tf.cond(tf.less(global_step, 32000),
+              lambda: tf.constant(init_lr, dtype=tf.float32),
+              lambda: tf.cond(tf.less(global_step, 48000),
+                  lambda: tf.constant(init_lr/10., dtype=tf.float32), 
+                  lambda: tf.constant(init_lr/100., dtype=tf.float32))))
+    return global_step, learning_rate
+
+  def _get_update_ops(self, hparams, scope=None):
+    with tf.variable_scope(scope, "update_ops"): 
+      opt = tf.train.MomentumOptimizer(self._learning_rate, hparams.momentum)
+      update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+      # For updating the population mean and variance in batch norm
+      with tf.control_dependencies(update_ops):
+        update_op = opt.minimize(self._loss, global_step=self._global_step)
     return update_op
 
   def train(self, sess):
