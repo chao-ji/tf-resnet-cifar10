@@ -13,6 +13,13 @@ from sklearn.preprocessing import StandardScaler
 
 BYTES_PER_INSTANCE = 3073
 HEIGHT, WIDTH, CHANNELS = 32, 32, 3
+TEST_BATCH_SIZE = 10000
+TRAIN_FILES = ("data_batch_1.bin",
+    "data_batch_2.bin",
+    "data_batch_3.bin",
+    "data_batch_4.bin",
+    "data_batch_5.bin")
+TEST_FILES = ("test_batch.bin",)
 TRAIN_MODE = tf.contrib.learn.ModeKeys.TRAIN
 
 
@@ -27,14 +34,14 @@ class CIFAR10Dataset(object):
       self._inputs = tf.placeholder(tf.float32, shape=[None,
         HEIGHT, WIDTH, CHANNELS], name="inputs")
 
-    train, test = _DataReader(hparams)._read_data()
+    train, test = _DataReader(hparams).read_data()
     train, test = _subtract_per_pixel_mean(train, test)
 
     if mode == TRAIN_MODE:
-      self.generator = _DataFeeder(
+      self._generator = _DataFeeder(
           hparams, mode, train[0], train[1]).create_train_batch_generator()
     else:
-      self.generator = _DataFeeder(
+      self._generator = _DataFeeder(
           hparams, mode, test[0], test[1]).create_test_batch_generator()
 
   @property
@@ -50,7 +57,7 @@ class CIFAR10Dataset(object):
     return self._inputs
 
   def refill_feed_dict(self):
-    labels, inputs = self.generator.next() 
+    labels, inputs = self._generator.next() 
     return {self.labels: labels, self.inputs: inputs}
 
 
@@ -58,14 +65,14 @@ class _DataReader(object):
   """Helper class for reading CIFAR10 data."""
   def __init__(self, hparams):
     self.path = hparams.path
-    self.train_files = hparams.train_files
-    self.test_files = hparams.test_files
+    self.train_files = TRAIN_FILES
+    self.test_files = TEST_FILES
     self.bytes_per_instance = BYTES_PER_INSTANCE
     self.channels = CHANNELS
     self.height = HEIGHT 
     self.width = WIDTH
 
-  def _read_data(self):
+  def read_data(self):
     filenames = [os.path.join(self.path, fn)
         for fn in self.train_files + self.test_files]
 
@@ -100,7 +107,7 @@ class _DataFeeder(object):
     self.crop_size = hparams.crop_size
     self._rs = np.random.RandomState(hparams.random_seed)
     self.batch_size = hparams.batch_size if mode == TRAIN_MODE \
-        else hparams.test_batch_size
+        else TEST_BATCH_SIZE
 
     self.labels = labels
     self.inputs = inputs
@@ -140,9 +147,10 @@ class _DataFeeder(object):
 
   def create_test_batch_generator(self):
     """Creates python generator for `Evaluator`."""
-    for i in range(0, self.inputs.shape[0], self.batch_size):
-      yield self.labels[i: i + self.batch_size], \
-          self.inputs[i: i + self.batch_size]
+    while True:
+      for i in range(0, self.inputs.shape[0], self.batch_size):
+        yield self.labels[i: i + self.batch_size], \
+            self.inputs[i: i + self.batch_size]
 
 
 def _subtract_per_pixel_mean(train, test):
