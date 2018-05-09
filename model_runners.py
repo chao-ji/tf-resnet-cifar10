@@ -27,7 +27,7 @@ class _BaseModelRunner(object):
       if type(self).mode == tf.contrib.learn.ModeKeys.TRAIN:
         self._global_step, self._learning_rate = self._get_learning_rate_ops(
           hparams)
-        self._update_op = self._get_update_op(hparams)
+        self._update_op = self._get_update_ops(hparams)
 
       self._global_variables_initializer = tf.global_variables_initializer()
       self._saver = tf.train.Saver(
@@ -150,4 +150,3 @@ def _compute_acc(labels, logits, scope=None):
     accuracy = tf.reduce_mean(
         tf.cast(tf.equal(labels, tf.argmax(logits, 1)), tf.float32))
   return accuracy
- 
