@@ -37,6 +37,8 @@ class ResNetModel(object):
     with arg_scope(resnet_arg_scope(
         weight_decay=hparams.weight_decay,
         batch_norm_epsilon=hparams.epsilon,
+        batch_norm_fused=hparams.fused,
+        batch_norm_is_training=self._is_training,
         random_seed=hparams.random_seed)):
       self._logits = self._build_graph(hparams, dataset)
 
@@ -46,7 +48,6 @@ class ResNetModel(object):
     inputs = dataset.inputs
     num_layers = hparams.num_layers
     shortcut_conn = self._shortcut_conn
-    is_training = self._is_training
 
     if num_layers not in (20, 32, 44, 56, 110):
       raise ValueError("`num_layers` must be 20, 32, 44, 56 or 110.")
@@ -59,29 +60,28 @@ class ResNetModel(object):
         resnet_v2_block("block3", num_units, 64, 2, shortcut_conn, False)]
 
     with tf.variable_scope(scope, "resnet_v2", [inputs], reuse=reuse):
-      with arg_scope([layers.batch_norm], is_training=is_training):
-        net = inputs
+      net = inputs
 
-        net = layers_lib.conv2d(net, 16, 3, 1, "SAME", 
-            activation_fn=None,
-            normalizer_fn=None,
-            biases_initializer=None,
-            scope="init_conv")
+      net = layers_lib.conv2d(net, 16, 3, 1, "SAME", 
+          activation_fn=None,
+          normalizer_fn=None,
+          biases_initializer=None,
+          scope="init_conv")
 
-        net = resnet_utils.stack_blocks(net, blocks)
+      net = resnet_utils.stack_blocks(net, blocks)
 
-        net = layers.batch_norm(
-            net, activation_fn=tf.nn.relu, scope="postnorm")
-        net = tf.reduce_mean(
-            net, [1, 2], name="global_average_pooling", keepdims=True)
-        net = layers_lib.conv2d(net, 10, 1, 1, 
-            activation_fn=None,
-            normalizer_fn=None,
-            weights_initializer=tf.initializers.variance_scaling(
-                distribution="uniform",
-                seed=hparams.random_seed),
-            scope="logits")
-        logits = tf.squeeze(net, axis=[1, 2])
+      net = layers.batch_norm(
+          net, activation_fn=tf.nn.relu, scope="postnorm")
+      net = tf.reduce_mean(
+          net, [1, 2], name="global_average_pooling", keepdims=True)
+      net = layers_lib.conv2d(net, 10, 1, 1, 
+          activation_fn=None,
+          normalizer_fn=None,
+          weights_initializer=tf.initializers.variance_scaling(
+              distribution="uniform",
+              seed=hparams.random_seed),
+          scope="logits")
+      logits = tf.squeeze(net, axis=[1, 2])
 
     return logits
 
