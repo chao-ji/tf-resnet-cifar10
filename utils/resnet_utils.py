@@ -40,6 +40,7 @@ def resnet_arg_scope(weight_decay=2e-4,
                      batch_norm_epsilon=1e-3,
                      batch_norm_scale=True,
                      batch_norm_fused=True,
+                     batch_norm_is_training=True,
                      random_seed=None):
   """Defines the default ResNet arguments."""
   batch_norm_params = {
@@ -47,6 +48,7 @@ def resnet_arg_scope(weight_decay=2e-4,
       "epsilon": batch_norm_epsilon,
       "scale": batch_norm_scale,
       "fused": batch_norm_fused,
+      "is_training": batch_norm_is_training,
       "updates_collections": tf.GraphKeys.UPDATE_OPS}
 
   with arg_scope([layers_lib.conv2d],
