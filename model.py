@@ -15,15 +15,11 @@ from __future__ import print_function
 
 
 import tensorflow as tf
-from tensorflow.contrib import layers as layers_lib
-from tensorflow.contrib.framework.python.ops import add_arg_scope
-from tensorflow.contrib.framework.python.ops import arg_scope
-from tensorflow.contrib.layers.python.layers import layers
-from tensorflow.contrib.layers.python.layers import utils
 
 import data
 from utils import resnet_utils
 
+slim = tf.contrib.slim
 resnet_arg_scope = resnet_utils.resnet_arg_scope
 
 
@@ -34,7 +30,7 @@ class ResNetModel(object):
     self._is_training = self._mode == tf.contrib.learn.ModeKeys.TRAIN
     self._shortcut_conn = hparams.shortcut_conn
 
-    with arg_scope(resnet_arg_scope(
+    with slim.arg_scope(resnet_arg_scope(
         weight_decay=hparams.weight_decay,
         batch_norm_epsilon=hparams.epsilon,
         batch_norm_fused=hparams.fused,
@@ -62,7 +58,7 @@ class ResNetModel(object):
     with tf.variable_scope(scope, "resnet_v2", [inputs], reuse=reuse):
       net = inputs
 
-      net = layers_lib.conv2d(net, 16, 3, 1, "SAME", 
+      net = slim.conv2d(net, 16, 3, 1, "SAME", 
           activation_fn=None,
           normalizer_fn=None,
           biases_initializer=None,
@@ -70,11 +66,11 @@ class ResNetModel(object):
 
       net = resnet_utils.stack_blocks(net, blocks)
 
-      net = layers.batch_norm(
+      net = slim.batch_norm(
           net, activation_fn=tf.nn.relu, scope="postnorm")
       net = tf.reduce_mean(
           net, [1, 2], name="global_average_pooling", keepdims=True)
-      net = layers_lib.conv2d(net, 10, 1, 1, 
+      net = slim.conv2d(net, 10, 1, 1, 
           activation_fn=None,
           normalizer_fn=None,
           weights_initializer=tf.initializers.variance_scaling(
@@ -86,7 +82,7 @@ class ResNetModel(object):
     return logits
 
 
-@add_arg_scope
+@slim.add_arg_scope
 def unit_fn_v2(inputs,
                depth,
                stride,
@@ -97,20 +93,20 @@ def unit_fn_v2(inputs,
   See ref [2].
   """
   with tf.variable_scope(scope, "unit_fn_v2", [inputs]):
-    depth_in = utils.last_dimension(inputs.get_shape(), min_rank=4)
-    preact = layers.batch_norm(
+    depth_in = slim.utils.last_dimension(inputs.get_shape(), min_rank=4)
+    preact = slim.batch_norm(
         inputs, activation_fn=tf.nn.relu, scope="preact")
 
     shortcut = preact if shortcut_from_preact else inputs
 
     if depth != depth_in:
       with tf.name_scope("shortcut"):
-        shortcut = layers.avg_pool2d(shortcut, [2, 2], stride=2)
+        shortcut = slim.avg_pool2d(shortcut, [2, 2], stride=2)
         shortcut = tf.pad(
             shortcut, [[0, 0], [0, 0], [0, 0], [(depth - depth_in) // 2] * 2])
 
-    residual = layers_lib.conv2d(preact, depth, 3, stride, scope="conv1")
-    residual = layers_lib.conv2d(residual, depth, 3, 1,
+    residual = slim.conv2d(preact, depth, 3, stride, scope="conv1")
+    residual = slim.conv2d(residual, depth, 3, 1,
         normalizer_fn=None, activation_fn=None, biases_initializer=None,
         scope="conv2")
 

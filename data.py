@@ -57,7 +57,7 @@ class CIFAR10Dataset(object):
     return self._inputs
 
   def refill_feed_dict(self):
-    labels, inputs = self._generator.next() 
+    labels, inputs = next(self._generator)
     return {self.labels: labels, self.inputs: inputs}
 
 

@@ -1,6 +1,6 @@
-"""Defines ResNetModel `Trainer` and `Evaluator` for 
- training on the training set (50000 labeles images) and evaluating
- on the test set (10000 labeled images).
+"""Defines ResNetModel `Trainer` and `Evaluator` for training 
+on the training set (50000 labeled images) and evaluating 
+on the test set (10000 labeled images).
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -26,8 +26,8 @@ class _BaseModelRunner(object):
 
       if type(self).mode == tf.contrib.learn.ModeKeys.TRAIN:
         self._global_step, self._learning_rate = self._get_learning_rate_ops(
-          hparams)
-        self._update_op = self._get_update_ops(hparams)
+            hparams)
+        self._train_ops = self._get_train_ops(hparams)
 
       self._global_variables_initializer = tf.global_variables_initializer()
       self._saver = tf.train.Saver(
@@ -98,18 +98,18 @@ class ResNetModelTrainer(_BaseModelRunner):
                   lambda: tf.constant(init_lr/100., dtype=tf.float32))))
     return global_step, learning_rate
 
-  def _get_update_ops(self, hparams, scope=None):
-    with tf.variable_scope(scope, "update_ops"): 
+  def _get_train_ops(self, hparams, scope=None):
+    with tf.variable_scope(scope, "train_ops"): 
       opt = tf.train.MomentumOptimizer(self._learning_rate, hparams.momentum)
       update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
       # For updating the population mean and variance in batch norm
       with tf.control_dependencies(update_ops):
-        update_op = opt.minimize(self._loss, global_step=self._global_step)
-    return update_op
+        train_ops = opt.minimize(self._loss, global_step=self._global_step)
+    return train_ops
 
   def train(self, sess):
     feed_dict = self.dataset.refill_feed_dict()
-    return sess.run([self._update_op,
+    return sess.run([self._train_ops,
                      self._loss,
                      self._accuracy,
                      self._learning_rate,
@@ -150,3 +150,4 @@ def _compute_acc(labels, logits, scope=None):
     accuracy = tf.reduce_mean(
         tf.cast(tf.equal(labels, tf.argmax(logits, 1)), tf.float32))
   return accuracy
+

@@ -51,5 +51,5 @@ def create_hparams(FLAGS):
 
 
 def print_args(hparams):
-  for k, v in hparams.values().iteritems():
+  for k, v in hparams.values().items():
     print("%s: %s" % (k, v)) 

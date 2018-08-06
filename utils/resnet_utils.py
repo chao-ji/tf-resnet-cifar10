@@ -7,10 +7,8 @@ from __future__ import print_function
 import collections
 
 import tensorflow as tf
-from tensorflow.contrib import layers as layers_lib
-from tensorflow.contrib.framework.python.ops import add_arg_scope
-from tensorflow.contrib.framework.python.ops import arg_scope
-from tensorflow.contrib.layers.python.layers import layers
+
+slim = tf.contrib.slim
 
 
 class Block(collections.namedtuple("Block", ["scope", "unit_fn", "args"])):
@@ -23,7 +21,7 @@ class Block(collections.namedtuple("Block", ["scope", "unit_fn", "args"])):
   """
 
 
-@add_arg_scope
+@slim.add_arg_scope
 def stack_blocks(net, blocks):
   """Stacks ResNet blocks."""
   for block in blocks:
@@ -51,11 +49,11 @@ def resnet_arg_scope(weight_decay=2e-4,
       "is_training": batch_norm_is_training,
       "updates_collections": tf.GraphKeys.UPDATE_OPS}
 
-  with arg_scope([layers_lib.conv2d],
+  with slim.arg_scope([slim.conv2d],
       weights_regularizer=tf.contrib.layers.l2_regularizer(scale=weight_decay),
       weights_initializer=tf.contrib.layers.xavier_initializer(seed=random_seed),
       activation_fn=tf.nn.relu,
-      normalizer_fn=layers.batch_norm,
+      normalizer_fn=slim.batch_norm,
       normalizer_params=batch_norm_params):
-    with arg_scope([layers.batch_norm], **batch_norm_params) as arg_sc:
+    with slim.arg_scope([slim.batch_norm], **batch_norm_params) as arg_sc:
       return arg_sc
