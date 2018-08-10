@@ -61,7 +61,7 @@ Note that at the joints between two neighboring blocks, the sizes of height and 
 <img src="files/shortcut.png" width="500">
 
 ##### Global Pooling and Projection Layer
-The backbone ends with a *global average pooling*, which reduces the spatial dimension from `8x8` to `1x1`, and generates the prediction logits via a projection layer (implemented as an affine transformation).
+The backbone ends with a *global average pooling* (`Reduce_mean`), which reduces the spatial dimension from `8x8` to `1x1`, and generates the prediction logits by projecting the 64-D representation of images into 10-D space.
 
 <img src="files/final.png" width="450">
 
