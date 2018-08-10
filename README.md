@@ -56,7 +56,7 @@ Then it stacks up three similarly structured *blocks*, which gradually halves th
 Note the conv layers in the repeating units are **preactivated** -- the batch-norm layer and nonlinearity *precedes* the conv layers as opposed to following them, which is used in *Resnet v2*. <sup>[1](#myfootnote2)</sup>
 
 ##### Shortcut Connection
-Note that at the joints between two neighboring blocks, the sizes of height and width are halved while the depth is doubled. To ensure the two feature maps connected by the shortcut path are shape-compatible, we use the **Identity Shortcut** option described in the paper -- in the shortcut branch, we average-pool the incoming feature map with `stride=2, kernel_size=2, pad='SAME'`, and then zero-pad the depth dimension, so that the two ends of shortcut connection have the same shape. 
+Note that at the joints between two neighboring blocks, the sizes of height and width are halved while the depth is doubled. To ensure the two feature maps coming out of the backbone branch and shortcut branch are shape-compatible, we use the **Identity Shortcut** option described in the paper -- in the shortcut branch, we first average-pool the incoming feature map with `stride=2, kernel_size=2, pad='SAME'`, and then zero-pad the depth dimension, so that the two feature maps have the same shape `[N, 16, 16, 32]`. 
 
 <img src="files/shortcut.png" width="500">
 
@@ -65,7 +65,7 @@ The backbone ends with a *global average pooling*, which reduces the spatial dim
 
 <img src="files/final.png" width="450">
 
-The full diagram of a 20-layer Resnet can be found [here](./files/ResNet20_CIFAR10.pdf)
+The full diagram of a 20-layer Resnet can be found [here](./files/ResNet20_CIFAR10.pdf).
 
 ### References:
   1. <a name="myfootnote1">Resnet V1</a>, Deep Residual Learning for Image Recognition, He *et al.*
