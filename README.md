@@ -1,6 +1,6 @@
 # Resnet: Classifying CIFAR-10 images 
 
-An easy-to-follow TensorFlow implementation of Resnet model for classifying CIFAR-10 images. Can be useful for those interested in reproducing the results presented in the paper, or understanding how to build Resnet model in TensorFlow.
+An easy-to-follow presentation of TensorFlow implementation of Resnet model for classifying CIFAR-10 images. Useful for those interested in reproducing the results presented in the paper, or understanding how to build Resnet model in TensorFlow.
 
 ### Usage
 ##### Clone the Repo
@@ -23,7 +23,7 @@ To change the number of layers in the Resnet (for example, to 110), specify `--n
 python run_trainer.py --help
 ```
 ##### Evaluate a Trained Resnet Classifier
-To evaluate the trained model on the evaluation set (10,000 images), run
+To evaluate the trained model on the test set (10,000 images), run
 ```
   python run_evaluator.py \
     --path=cifar-10-batches-bin \
@@ -32,7 +32,7 @@ To evaluate the trained model on the evaluation set (10,000 images), run
 ```
 Note that you need to specify the path to the checkpoint file containing trained weights via `--ckpt_path`.
 ### Results
-We train three Resnets with the number of layers being 20, 56, and 110, and we evaluate their accuracy on the evaluation set (10,000 images). As we can see, deeper versions of Resnet model achieves better accuracy compared with the shallower version, while the trend is opposite for the Plain network that comes with no residual connections.
+We train three Resnets with the number of layers being 20, 56, and 110, and we evaluate their accuracy on the test set (10,000 images). As we can see, deeper version of Resnet achieves better accuracy compared with the shallower version, while the trend is opposite for the Plain network that comes with no residual connections (c.f. Figure 6 in the Resnet paper).
 
 
 ##### Residual Net
@@ -43,8 +43,10 @@ We train three Resnets with the number of layers being 20, 56, and 110, and we e
 
 
 ### Build Resnet Model
-##### Initial Conv layer
-The Resnet model backbone starts with an initial conv layer with no bias:
+Here we outline the structure of Resnet model. 
+
+##### Initial Conv Layer
+The Resnet model backbone starts with an initial conv layer with no bias. It simply increases the depth of the input feature map (images) via a single conv op.
 <img src="files/init_conv.png" width="400">
 
 ##### Blocks and Units
@@ -54,7 +56,7 @@ Then it stacks up three similarly structured *blocks*, which gradually halves th
 Note the conv layers in the repeating units are **preactivated** -- the batch-norm layer and nonlinearity *precedes* the conv layers as opposed to following them, which is used in *Resnet v2*. <sup>[1](#myfootnote2)</sup>
 
 ##### Shortcut Connection
-At the joints between two neighboring blocks, the sizes of height and width are halved while the depth is doubled. To ensure the shapes are compatible, we use the **Identity Shortcut** option described in the paper -- in the shortcut branch, we average-pool the incoming feature map with `stride=2, kernel_size=2, pad='SAME'`, and then zero-pad the depth dimension, so that the two ends of shortcut connection have the same shape. 
+Note that at the joints between two neighboring blocks, the sizes of height and width are halved while the depth is doubled. To ensure the two feature maps connected by the shortcut path are shape-compatible, we use the **Identity Shortcut** option described in the paper -- in the shortcut branch, we average-pool the incoming feature map with `stride=2, kernel_size=2, pad='SAME'`, and then zero-pad the depth dimension, so that the two ends of shortcut connection have the same shape. 
 
 <img src="files/shortcut.png" width="500">
 
