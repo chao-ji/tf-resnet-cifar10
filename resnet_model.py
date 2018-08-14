@@ -9,11 +9,13 @@ from utils import model_utils
 slim = tf.contrib.slim
 
 
-class ResnetModel(object):
+class ResnetPredictionModel(object):
   """Resnet model for classifying 32x32 images in Cifar10 dataset.
 
-  Abstract base class to be subclassed by Trainer and Evaluator. They need
-  to implement `train` and 'evaluator' method, respectively.
+  Implements a `predict` method that runs the input images through the 
+  forward pass to get the prediction logits to be consumed by subclasses,
+  Trainer and Evaluator. They need to implement `train` and 'evaluator' method,
+  respectively.
   """
 
   __metaclass__ = ABCMeta
@@ -120,7 +122,7 @@ class ResnetModel(object):
           .format(dataset.mode, self.mode))
 
 
-class ResnetModelTrainer(ResnetModel):
+class ResnetModelTrainer(ResnetPredictionModel):
   """Performs training."""
   @property
   def is_training(self):
@@ -131,7 +133,7 @@ class ResnetModelTrainer(ResnetModel):
     return tf.contrib.learn.ModeKeys.TRAIN
 
   def train(self, path, dataset, optimizer, learning_rate):
-    """Adds related ops to the graph.
+    """Adds train related ops to the graph.
 
     Args:
       path: a string scalar, the path to the directory containing cifar10
@@ -184,7 +186,7 @@ class ResnetModelTrainer(ResnetModel):
     return persist_saver
 
 
-class ResnetModelEvaluator(ResnetModel):
+class ResnetModelEvaluator(ResnetPredictionModel):
   """Performs evaluation."""
   @property
   def is_training(self):
