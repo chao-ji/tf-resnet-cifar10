@@ -7,6 +7,7 @@ def compute_loss(labels, logits, scope=None):
   Args:
     labels: an int tensor with shape [batch], the groundtruth label.
     logits: a float tensor with shape [batch, 10], the prediction logit.
+    scope: string scalar, scope name.
 
   Returns:
     total_loss: a float scalar tensor, the total loss
@@ -27,6 +28,7 @@ def compute_accuracy(labels, logits, scope=None):
   Args:
     labels: an int tensor with shape [batch], the groundtruth label.
     logits: a float tensor with shape [batch, 10], the prediction logit.
+    scope: string scalar, scope name.
 
   Returns:
     accuracy: a float scalar tensor, the percentage of correct predictions. 
@@ -37,18 +39,18 @@ def compute_accuracy(labels, logits, scope=None):
     return accuracy
 
 
-def build_optimizer(init_lr, global_step, momentum):
+def build_optimizer(init_lr, momentum):
   """Build the momentum optimizer and the piecewise constant learning rate.
 
   Args:
     init_lr: a float scalar, initial learning rate.
-    global_step: an int scalar tensor, global step.
     momentum: float scalar, momentum.
 
   Returns:
     optimizer: an optimizer instance.
     learning_rate: a float scalar tensor, learning rate.
   """
+  global_step = tf.train.get_or_create_global_step()
   learning_rate = tf.cond(tf.less(global_step, 500),
       lambda: tf.constant(init_lr/10., dtype=tf.float32),
       lambda: tf.cond(tf.less(global_step, 32000),

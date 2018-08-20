@@ -148,6 +148,7 @@ class ResnetModelTrainer(ResnetPredictionModel):
       total_loss: a float scalar tensor, the total loss.
       accuracy: a float scalar tensor, classification accuracy on each
         mini batch training set.
+      summary: a scalar tensor containing the protobuf message of summary.
       global_step: an int scalar, global step.
     """
     self.check_dataset_mode(dataset)
@@ -170,7 +171,7 @@ class ResnetModelTrainer(ResnetPredictionModel):
                                                  accuracy,
                                                  learning_rate)
 
-    return grouped_update_op, total_loss, accuracy, summary
+    return grouped_update_op, total_loss, accuracy, summary, global_step
 
   def create_persist_saver(self, max_to_keep=5):
     """Creates persist saver for persisting variables to a checkpoint file.
@@ -203,6 +204,7 @@ class ResnetModelEvaluator(ResnetPredictionModel):
       path: a string scalar, the path to the directory containing cifar10
         binary files. 
       dataset: a dataset.Cifar10Dataset instance, the input data generate.
+
     Returns:
       total_loss: a float scalar tensor, the total loss.
       accuracy: a float scalar tensor, classification accuracy on each

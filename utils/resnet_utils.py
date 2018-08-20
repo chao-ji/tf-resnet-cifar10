@@ -6,10 +6,10 @@ slim = tf.contrib.slim
 
 
 class Block(collections.namedtuple('Block', ['scope', 'unit_fn', 'args'])):
-  """Wrapper of a namedtuple containing specs of a Resnet Block.
+  """Wrapper of a namedtuple containing the following properties of of a 
+    Resnet Block. 
 
-  Args:
-    scope: string scalar, the scope of the block.
+    scope: string scalar, scope name of block.
     unit_fn: a callable, the Resnet unit function.
     args: a list of dict mapping from arg name to arg value, contaning the 
       kwargs for each `unit_fn` in this block.
@@ -94,6 +94,7 @@ def unit_fn_v2(inputs,
       in each Resnet unit. If False, degenerates to a 'Plain network'.
     shortcut_from_preact: bool scalar, whether the shortcut connection starts
       from the preactivation or the input feature map.
+    scope: string scalar, scope name of unit.
 
   Returns:
     output: float tensor with shape [batch, height, width, channels], the 
@@ -131,6 +132,7 @@ def resnet_v2_block(scope,
   """Helper for creating Resnet v2 block specifications.
 
   Args:
+    scope: string scalar, scope name of block.
     num_units: int scalar, the num of Resnet units in each block.
     depth: int scalar, the depth of the two conv ops in each Resnet unit.
     stride: int scalar, the stride of the first conv op in each Resnet unit.

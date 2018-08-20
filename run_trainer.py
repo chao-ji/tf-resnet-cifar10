@@ -51,16 +51,15 @@ def main(_):
       weight_decay=FLAGS.weight_decay,
       batch_norm_decay=FLAGS.batch_norm_decay)
 
-  global_step = tf.train.get_or_create_global_step()
   model_trainer = resnet_model.ResnetModelTrainer(
       conv_hyperparams_fn, FLAGS.num_layers, FLAGS.shortcut_connection)
 
   optimizer, learning_rate = model_utils.build_optimizer(
-      FLAGS.init_lr, global_step, FLAGS.momentum)
+      FLAGS.init_lr, FLAGS.momentum)
 
   dataset = TrainerCifar10Dataset(FLAGS.batch_size, 4, 32, FLAGS.buffer_size)
 
-  grouped_update_op, total_loss, accuracy, summary = model_trainer.train(
+  grouped_update_op, total_loss, accuracy, summary, _ = model_trainer.train(
       FLAGS.path, dataset, optimizer, learning_rate)
 
   persist_saver = model_trainer.create_persist_saver(max_to_keep=FLAGS.max_ckpts
