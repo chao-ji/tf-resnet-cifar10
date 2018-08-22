@@ -82,3 +82,27 @@ def build_training_summary(total_loss, accuracy, learning_rate):
 
   return summary
 
+
+def create_persist_saver(max_to_keep=5):
+  """Creates persist saver for persisting variables to a checkpoint file.
+
+  Args:
+    max_to_keep: int scalar or None, max num of checkpoints to keep. If None,
+      keeps all checkpoints.
+        
+  Returns:
+    persist_saver: a tf.train.Saver instance.
+  """
+  persist_saver = tf.train.Saver(max_to_keep=max_to_keep)
+  return persist_saver
+
+
+def create_restore_saver():
+  """Creates restore saver for persisting variables to a checkpoint file.
+
+  Returns:
+    restore_saver: a tf.train.Saver instance.
+  """
+  restore_saver = tf.train.Saver()
+  return restore_saver
+

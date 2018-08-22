@@ -62,7 +62,7 @@ def main(_):
   grouped_update_op, total_loss, accuracy, summary, _ = model_trainer.train(
       FLAGS.path, dataset, optimizer, learning_rate)
 
-  persist_saver = model_trainer.create_persist_saver(max_to_keep=FLAGS.max_ckpts
+  persist_saver = model_utils.create_persist_saver(max_to_keep=FLAGS.max_ckpts
       if FLAGS.max_ckpts > 0 else None)
 
   summary_writer = tf.summary.FileWriter(FLAGS.train_log_path)

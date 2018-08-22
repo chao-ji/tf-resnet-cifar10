@@ -46,7 +46,7 @@ def main(_):
 
   total_loss, accuracy = model_evaluator.evaluate(FLAGS.path, dataset)
 
-  restore_saver = model_evaluator.create_restore_saver()
+  restore_saver = model_utils.create_restore_saver()
 
   sess = tf.Session()
 

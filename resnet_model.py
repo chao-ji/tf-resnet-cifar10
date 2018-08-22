@@ -142,6 +142,7 @@ class ResnetModelTrainer(ResnetPredictionModel):
       optimizer: an optimizer instance, that computes and applies gradient
         updates.
       learning_rate: a float scalar tensor, the learning rate.
+
     Returns:
       grouped_update_op: a grouped op, that includes batch norm update ops
         and gradient update ops.
@@ -172,19 +173,6 @@ class ResnetModelTrainer(ResnetPredictionModel):
                                                  learning_rate)
 
     return grouped_update_op, total_loss, accuracy, summary, global_step
-
-  def create_persist_saver(self, max_to_keep=5):
-    """Creates persist saver for persisting variables to a checkpoint file.
-
-    Args:
-      max_to_keep: int scalar or None, max num of checkpoints to keep. If None,
-        keeps all checkpoints.
-        
-    Returns:
-      persist_saver: a tf.train.Saver instance.
-    """
-    persist_saver = tf.train.Saver(max_to_keep=max_to_keep)
-    return persist_saver
 
 
 class ResnetModelEvaluator(ResnetPredictionModel):
@@ -218,13 +206,4 @@ class ResnetModelEvaluator(ResnetPredictionModel):
     accuracy = model_utils.compute_accuracy(tensor_dict['labels'], logits)
 
     return total_loss, accuracy 
-
-  def create_restore_saver(self):
-    """Creates restore saver for persisting variables to a checkpoint file.
-
-    Returns:
-      restore_saver: a tf.train.Saver instance.
-    """
-    restore_saver = tf.train.Saver()
-    return restore_saver
 
