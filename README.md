@@ -47,7 +47,7 @@ We train three ResNets with the number of layers being 20, 56, and 110, and we e
 
 
 ### Build ResNet Model
-Here we briefly discusses the nuts and bolts of building a ResNet model. We use the convention of `[batch, height, width, depth]` to describe the shape of feature map. For example, the input to ResNet, i.e. the images has shape `[N, 32, 32, 3]`.
+Here we briefly discusses the nuts and bolts of building a ResNet model (i.e. the one for CIFAR10 dataset without the bottleneck structure). We use the convention of `[batch, height, width, depth]` to describe the shape of feature map. For example, the input to ResNet, i.e. the images has shape `[N, 32, 32, 3]`.
 
 ##### Initial Conv Layer
 The ResNet model backbone starts with an initial conv layer with no bias. It simply increases the depth of the input feature map from 3 to 16 via a single conv op.
@@ -60,7 +60,7 @@ Then it stacks up three similarly structured *blocks*, which gradually halves th
 Note the conv layers in the repeating units are **preactivated** -- the batch-norm layer and nonlinearity (ReLU) *precedes* the conv layers as opposed to following them, which is used in *ResNet v2*. <sup>[1](#myfootnote2)</sup>
 
 ##### Shortcut Connection
-There are a total of three blocks in this ResNet, and the feature map sizes (height and width dimension) are halved while the depth is doubled within the first unit of the following block. This causes inconsistency if we were to naively add a shortcut connection linking the input (shape `[N, 32, 32, 16]`) and output (shape `[N, 16, 16, 32]`) feature maps of the first unit.
+There are a total of three blocks in this ResNet, and the feature map sizes (height and width dimension) are halved while the depth is doubled within the first unit of the following block. This would cause a shape mismatch if we were to naively add a shortcut connection linking the input (shape `[N, 32, 32, 16]`) and output (shape `[N, 16, 16, 32]`) feature maps of the first unit.
 
 To ensure the two feature maps coming out of the backbone branch and shortcut branch are shape-compatible, we use the **Identity Shortcut** option described in the paper -- in the shortcut branch, we first average-pool the incoming feature map with `stride=2, kernel_size=2, pad='SAME'`, and then zero-pad the depth dimension, so that the two feature maps end up having the same shape `[N, 16, 16, 32]`. 
 
