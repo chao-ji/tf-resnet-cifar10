@@ -1,5 +1,7 @@
 # ResNet: Classifying CIFAR-10 images 
 
+**Note**: the **v2** directory contains implementation fully compatible with TensorFlow 2.0.
+
 * A lightweight TensorFlow implementation of ResNet model for classifying CIFAR-10 images. 
 
 * Reproduces the results presented in the paper.
