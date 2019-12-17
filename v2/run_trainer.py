@@ -36,7 +36,6 @@ FLAGS = flags.FLAGS
 
 def main(_):
   builder = Cifar10DatasetBuilder(buffer_size=FLAGS.shuffle_buffer_size)
-#  data_path = '/home/chaoji/_Data/resnet/cifar-10-batches-bin'
   labels, images = read_data(FLAGS.data_path, training=True)
   dataset = builder.build_dataset(
       labels, images, FLAGS.batch_size, training=True)
